@@ -1,41 +1,61 @@
 
 use bytes::{Buf, BufMut, BytesMut};
-use super::{PacketError, BytesMutExt, PacketRead, PacketWrite};
+use super::{PacketError, BytesMutExt, PacketRead, PacketWrite, PacketPayload};
 
 use crate::gen_packet_types;
 
-gen_packet_types!(GameServerPacket;
-    ( Nonce(NoncePayload),                     31),
-    ( LoginSuccess(LoginSuccessPayload),       23),
-    ( PendingStateEntered,                     10),
-    ( EnterWorld,                              15),
-    ( PlayerDataBasic(PlayerDataBasicPayload), 159),
-    ( WorldLight(LightInfo),                   130),
-    ( CreatureLight(CreatureLightPayload),     141),
-    ( Ping,                                    29),
-    ( Pong,                                    30),
+gen_packet_types!(GameServerPacket; GameServerPacketKind;
+    ( Nonce,               31  ),
+    ( LoginSuccess,        23  ),
+    ( PendingStateEntered, 10  ),
+    ( EnterWorld,          15  ),
+    ( PlayerDataBasic,     159 ),
+    ( WorldLight,          130 ),
+    ( CreatureLight,       141 ),
+    ( Ping,                29  ),
+    ( Pong,                30  ),
 
-    ( FullWorld(FullWorldPayload),             100)
-    /*( WorldTopRow(BytesMut),             101),
-    ( WorldRightRow(BytesMut),           102),
-    ( WorldBottomRow(BytesMut),          103),
-    ( WorldLeftRow(BytesMut),            104)*/
+    ( FullWorld,           100 ),
+    ( WorldRowNorth,       101 ),
+    ( WorldRowEast,        102 ),
+    ( WorldRowSouth,       103 ),
+    ( WorldRowWest,        104 )
 );
 
-#[derive(Debug)]
-pub struct NoncePayload {
+#[derive(Debug, Default)]
+pub struct Ping;
+impl PacketRead for Ping {}
+impl PacketWrite for Ping {}
+
+#[derive(Debug, Default)]
+pub struct Pong;
+impl PacketRead for Pong {}
+impl PacketWrite for Pong {}
+
+#[derive(Debug, Default)]
+pub struct PendingStateEntered;
+impl PacketRead for PendingStateEntered {}
+impl PacketWrite for PendingStateEntered {}
+
+#[derive(Debug, Default)]
+pub struct EnterWorld;
+impl PacketRead for EnterWorld {}
+impl PacketWrite for EnterWorld {}
+
+#[derive(Debug, Default)]
+pub struct Nonce {
     pub timestamp: u32,
     pub random_number: u8,
 }
 
-impl PacketRead for NoncePayload {
+impl PacketRead for Nonce {
     fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
         todo!()
     }
 }
 
-impl PacketWrite for NoncePayload {
+impl PacketWrite for Nonce {
     fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
         out.put_u32_le(self.timestamp);
         out.put_u8(self.random_number);
@@ -43,8 +63,8 @@ impl PacketWrite for NoncePayload {
     }
 }
 
-#[derive(Debug)]
-pub struct LoginSuccessPayload {
+#[derive(Debug, Default)]
+pub struct LoginSuccess {
     pub player_id: u32,
     pub beat_duration: u16,
     pub speed_a: f64,
@@ -57,14 +77,14 @@ pub struct LoginSuccessPayload {
     pub coin_package_size: u16,
 }
 
-impl PacketRead for LoginSuccessPayload {
+impl PacketRead for LoginSuccess {
     fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
         todo!()
     }
 }
 
-impl PacketWrite for LoginSuccessPayload {
+impl PacketWrite for LoginSuccess {
     fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
         out.put_u32_le(self.player_id);
         out.put_u16_le(self.beat_duration);
@@ -80,22 +100,22 @@ impl PacketWrite for LoginSuccessPayload {
     }
 }
 
-#[derive(Debug)]
-pub struct PlayerDataBasicPayload {
+#[derive(Debug, Default)]
+pub struct PlayerDataBasic {
     pub is_premium: bool,
     pub premium_until: u32,
     pub vocation_id: u8,
     pub known_spells: Vec<u8>,
 }
 
-impl PacketRead for PlayerDataBasicPayload {
+impl PacketRead for PlayerDataBasic {
     fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
         todo!()
     }
 }
 
-impl PacketWrite for PlayerDataBasicPayload {
+impl PacketWrite for PlayerDataBasic {
     fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
         out.put_u8(if self.is_premium { 1 } else { 0 });
         out.put_u32_le(self.premium_until);
@@ -108,7 +128,7 @@ impl PacketWrite for PlayerDataBasicPayload {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Position {
     pub x: u16,
     pub y: u16,
@@ -131,7 +151,7 @@ impl PacketWrite for Position {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct LightInfo {
     pub light_level: u8,
     pub light_color: u8,
@@ -152,7 +172,7 @@ impl PacketWrite for LightInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Item {
     pub client_id: u16,
     pub stack_size: Option<u8>,
@@ -204,6 +224,12 @@ pub enum Outfit {
     }
 }
 
+impl Default for Outfit {
+    fn default() -> Self {
+        Outfit::Item { client_id: 0, mount: 0 }
+    }
+}
+
 impl PacketRead for Outfit {
     fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
@@ -244,7 +270,13 @@ pub enum CreatureKnown {
     },
 }
 
-#[derive(Debug)]
+impl Default for CreatureKnown {
+    fn default() -> Self {
+        CreatureKnown::Yes
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct Creature {
     pub id: u32,
     pub known: CreatureKnown,
@@ -330,7 +362,7 @@ impl PacketWrite for Thing {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Tile {
     pub environmental_effects: u16,
     pub things: [Option<Thing>; 10],
@@ -414,20 +446,20 @@ impl PacketWrite for Vec<WorldData> {
     }
 }
 
-#[derive(Debug)]
-pub struct FullWorldPayload {
+#[derive(Debug, Default)]
+pub struct FullWorld {
     pub player_position: Position,
     pub world_chunk: Vec<WorldData>,
 }
 
-impl PacketRead for FullWorldPayload {
+impl PacketRead for FullWorld {
     fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
         todo!()
     }
 }
 
-impl PacketWrite for FullWorldPayload {
+impl PacketWrite for FullWorld {
     fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
         out.put_t(&self.player_position)?;
         out.put_t(&self.world_chunk)?; // TODO: Check sum of data? Should always be 2016
@@ -435,20 +467,115 @@ impl PacketWrite for FullWorldPayload {
     }
 }
 
-#[derive(Debug)]
-pub struct CreatureLightPayload {
-    pub creature_id: u32,
-    pub light: LightInfo,
+#[derive(Debug, Default)]
+pub struct WorldRowNorth {
+    pub world_chunk: Vec<WorldData>,
 }
 
-impl PacketRead for CreatureLightPayload {
+impl PacketRead for WorldRowNorth {
     fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
         todo!()
     }
 }
 
-impl PacketWrite for CreatureLightPayload {
+impl PacketWrite for WorldRowNorth {
+    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+        out.put_t(&self.world_chunk)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct WorldRowEast {
+    pub world_chunk: Vec<WorldData>,
+}
+
+impl PacketRead for WorldRowEast {
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized {
+        todo!()
+    }
+}
+
+impl PacketWrite for WorldRowEast {
+    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+        out.put_t(&self.world_chunk)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct WorldRowWest {
+    pub world_chunk: Vec<WorldData>,
+}
+
+impl PacketRead for WorldRowWest {
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized {
+        todo!()
+    }
+}
+
+impl PacketWrite for WorldRowWest {
+    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+        out.put_t(&self.world_chunk)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct WorldRowSouth {
+    pub world_chunk: Vec<WorldData>,
+}
+
+impl PacketRead for WorldRowSouth {
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized {
+        todo!()
+    }
+}
+
+impl PacketWrite for WorldRowSouth {
+    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+        out.put_t(&self.world_chunk)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct WorldLight {
+    pub light: LightInfo,
+}
+
+impl PacketRead for WorldLight {
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized {
+        todo!()
+    }
+}
+
+impl PacketWrite for WorldLight {
+    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+        out.put_t(&self.light)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct CreatureLight {
+    pub creature_id: u32,
+    pub light: LightInfo,
+}
+
+impl PacketRead for CreatureLight {
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized {
+        todo!()
+    }
+}
+
+impl PacketWrite for CreatureLight {
     fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
         out.put_u32(self.creature_id);
         out.put_t(&self.light)?;

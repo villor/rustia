@@ -1,18 +1,53 @@
 use bytes::{Buf, BufMut, BytesMut};
 use std::num::Wrapping;
-use super::{PacketError, BytesMutExt, util, PacketRead, PacketWrite};
+use super::{PacketError, BytesMutExt, util, PacketRead, PacketWrite, PacketPayload};
 
 use crate::gen_packet_types;
 
-gen_packet_types!(ClientPacket;
-    ( AccountLogin(AccountLoginPayload), 0x01 ),
-    ( GameLogin(GameLoginPayload),       0x0A ),
-    ( Ping,                              0x1D ),
-    ( Pong,                              0x1E )
+gen_packet_types!(ClientPacket; ClientPacketKind;
+    ( AccountLogin, 1  ),
+    ( GameLogin,    10 ),
+    ( Ping,         29 ),
+    ( Pong,         30 ),
+
+    ( WalkNorth,    101 ),
+    ( WalkEast,     102 ),
+    ( WalkSouth,    103 ),
+    ( WalkWest,     104 )
 );
 
-#[derive(Debug)]
-pub struct AccountLoginPayload {
+#[derive(Debug, Default)]
+pub struct Ping;
+impl PacketRead for Ping {}
+impl PacketWrite for Ping {}
+
+#[derive(Debug, Default)]
+pub struct Pong;
+impl PacketRead for Pong {}
+impl PacketWrite for Pong {}
+
+#[derive(Debug, Default)]
+pub struct WalkNorth;
+impl PacketRead for WalkNorth {}
+impl PacketWrite for WalkNorth {}
+
+#[derive(Debug, Default)]
+pub struct WalkEast;
+impl PacketRead for WalkEast {}
+impl PacketWrite for WalkEast {}
+
+#[derive(Debug, Default)]
+pub struct WalkSouth;
+impl PacketRead for WalkSouth {}
+impl PacketWrite for WalkSouth {}
+
+#[derive(Debug, Default)]
+pub struct WalkWest;
+impl PacketRead for WalkWest {}
+impl PacketWrite for WalkWest {}
+
+#[derive(Debug, Default)]
+pub struct AccountLogin {
     pub client_os: u16,
     pub client_version: u16,
     pub protocol_version: u32,
@@ -26,7 +61,7 @@ pub struct AccountLoginPayload {
     pub auth_token: String,
 }
 
-impl PacketRead for AccountLoginPayload {
+impl PacketRead for AccountLogin {
     fn read_from(data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
         let client_os = data.get_u16_le();
@@ -60,7 +95,7 @@ impl PacketRead for AccountLoginPayload {
 
         let auth_token = data.get_string()?;
 
-        Ok(AccountLoginPayload {
+        Ok(AccountLogin {
             client_os,
             client_version,
             protocol_version,
@@ -76,14 +111,14 @@ impl PacketRead for AccountLoginPayload {
     }
 }
 
-impl PacketWrite for AccountLoginPayload {
+impl PacketWrite for AccountLogin {
     fn write_to(&self, _out: &mut BytesMut) -> Result<(), PacketError> {
         todo!()
     }
 }
 
-#[derive(Debug)]
-pub struct GameLoginPayload {
+#[derive(Debug, Default)]
+pub struct GameLogin {
     pub client_os: u16,
     pub client_version: u16,
     pub protocol_version: u32,
@@ -97,7 +132,7 @@ pub struct GameLoginPayload {
     pub challenge_rand_num: u8,
 }
 
-impl PacketRead for GameLoginPayload {
+impl PacketRead for GameLogin {
     fn read_from(data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
         let client_os = data.get_u16_le();
@@ -124,7 +159,7 @@ impl PacketRead for GameLoginPayload {
         let challenge_timestamp = data.get_u32_le();
         let challenge_rand_num = data.get_u8();
 
-        Ok(GameLoginPayload {
+        Ok(GameLogin {
             client_os,
             client_version,
             protocol_version,
@@ -140,7 +175,7 @@ impl PacketRead for GameLoginPayload {
     }
 }
 
-impl PacketWrite for GameLoginPayload {
+impl PacketWrite for GameLogin {
     fn write_to(&self, _out: &mut BytesMut) -> Result<(), PacketError> {
         todo!()
     }

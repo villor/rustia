@@ -12,7 +12,7 @@ pub trait BytesMutExt {
     fn get_double(&mut self) -> f64;
     fn put_double(&mut self, value: f64, precision: u8);
 
-    fn get_t<T: PacketRead>(&mut self) -> Result<T, PacketError>;
+    fn get_t<T: PacketRead + Default>(&mut self) -> Result<T, PacketError>;
     fn put_t<T: PacketWrite>(&mut self, writable: &T) -> Result<(), PacketError>;
 }
 
@@ -51,7 +51,7 @@ impl BytesMutExt for BytesMut {
         self.put_u32_le(((value * 10f64.powi(precision as i32)) + std::i32::MAX as f64) as u32);
     }
 
-    fn get_t<T: PacketRead>(&mut self) -> Result<T, PacketError> {
+    fn get_t<T: PacketRead + Default>(&mut self) -> Result<T, PacketError> {
         T::read_from(self)
     }
 

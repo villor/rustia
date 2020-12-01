@@ -26,14 +26,18 @@ pub enum PacketError {
 /// Ability to read an instance of Self from a BytesMut
 pub trait PacketRead {
     /// Reads the packet data from a BytesMut.
-    fn read_from(data: &mut BytesMut) -> Result<Self, PacketError>
-        where Self: std::marker::Sized;
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized + Default {
+        Ok(Self::default())
+    }
 }
 
 /// Ability to write an instance of Self to a BytesMut
 pub trait PacketWrite {
     /// Writes the packet data to a BytesMut
-    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError>;
+    fn write_to(&self, _out: &mut BytesMut) -> Result<(), PacketError> {
+        Ok(())
+    }
 }
 
 impl PacketRead for String {
@@ -50,44 +54,74 @@ impl PacketWrite for String {
     }
 }
 
+pub trait PacketPayload {
+    fn index() -> usize;
+}
+
 /// Generates an enum with packet types
 /// 
 /// The enum implements PacketRead and PacketWrite dispatched by packet id
 #[macro_export]
 macro_rules! gen_packet_types {
-    ($name:ident; $(($var:ident$(($ty:ty))?, $id:literal)),+) => {
+    ($name:ident; $name_kind:ident; $(($var:ident, $id:literal)),+) => {
         #[derive(Debug)]
         pub enum $name {
             $(
-                $var$(($ty))?,
+                $var($var),
             )+
         }
+
+        #[derive(Debug)]
+        pub enum $name_kind {
+            $(
+                $var,
+            )+
+            __CountKindsLast,
+        }
         
-        impl PacketRead for $name {
-            fn read_from(data: &mut BytesMut) -> Result<Self, PacketError>
-            where Self: std::marker::Sized {
+        impl $name {
+            #[allow(dead_code)]
+            pub const COUNT: usize = $name_kind::__CountKindsLast as usize;
+
+            pub fn read_from(data: &mut BytesMut) -> Result<Self, PacketError> {
                 let id = data.peek_u8();
                 match id {
-                    $($id => { data.advance(1); Ok($name::$var$((<$ty>::read_from(data)?))?) }),+
+                    $($id => { data.advance(1); Ok($name::$var(<$var>::read_from(data)?)) }),+
                     _ => Err(PacketError::UnknownPacket(id).into()),
                 }
             }
-        }
 
-        impl PacketWrite for $name {
-            fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+            pub fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
                 match self {
-                    $(gen_packet_types!(@write_variant ($name, $var$(, $ty, x)?)) => { out.put_u8($id); $(<$ty>::write_to(&x, out)?;)? Ok(()) },)+
+                    $($name::$var(x) => { out.put_u8($id); <$var>::write_to(&x, out)?; Ok(()) },)+
+                }
+            }
+
+            pub fn index(&self) -> usize {
+                match self {
+                    $($name::$var(_) => $name_kind::$var as usize),+
                 }
             }
         }
-    };
 
-    (@write_variant ($name:ident, $var:ident)) => {
-        $name::$var
-    };
+        use std::convert::TryFrom;
+        $(
+            impl TryFrom<$name> for $var {
+                type Error = &'static str;
 
-    (@write_variant ($name:ident, $var:ident, $ty:ty, $x:ident)) => {
-        $name::$var($x)
+                fn try_from(packet: $name) -> Result<Self, Self::Error> {
+                    if let $name::$var(packet) = packet {
+                        return Ok(packet);
+                    }
+                    Err("variant and struct mismatch")
+                }
+            }
+
+            impl PacketPayload for $var {
+                fn index() -> usize {
+                    $name_kind::$var as usize
+                }
+            }
+        )+
     };
 }

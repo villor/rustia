@@ -5,14 +5,17 @@ use futures::prelude::*;
 use futures::future;
 use bytes::BytesMut;
 use anyhow::{Result, bail};
-use log::{error, info, debug};
+use log::{error, info};
 
+use crate::packet_buffers::PacketTransmitter;
 use super::protocol::{TibiaCodec, FrameType};
 use super::protocol::packet::*;
 
 pub enum ServerToWorkerMessage {
+    PacketTransmitter(PacketTransmitter),
     SendPacket(GameServerPacket),
-    SendPacketsTogether(Vec<GameServerPacket>),
+    SendPacketBoxed(Box<GameServerPacket>),
+    SendPacketBundled(Vec<GameServerPacket>),
     Disconnect,
 }
 
@@ -60,7 +63,7 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
 
     // Send nonce command
     framed.codec_mut().set_frame_type(FrameType::LengthPrefixed);
-    let nonce = GameServerPacket::Nonce(game::NoncePayload {
+    let nonce = GameServerPacket::Nonce(game::Nonce {
         timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32,
         random_number: 23u8, // TODO: Actual random
     });
@@ -94,6 +97,14 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
     });
 
     let mut rx_stream = rx.stream();
+
+    let packet_tx =
+        if let Some(ServerToWorkerMessage::PacketTransmitter(packet_tx)) = rx_stream.next().await {
+            packet_tx
+        } else {
+            bail!("did not receive packet transmitter from main thread");
+        };
+
     loop {
         let received_msg = rx_stream.next();
         let received_packets = framed.next();
@@ -108,7 +119,12 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
                             packet.write_to(&mut out_buf)?;
                             framed.send(out_buf).await?;
                         },
-                        ServerToWorkerMessage::SendPacketsTogether(packets) => {
+                        ServerToWorkerMessage::SendPacketBoxed(packet) => {
+                            let mut out_buf = BytesMut::with_capacity(24590);
+                            packet.write_to(&mut out_buf)?;
+                            framed.send(out_buf).await?;
+                        },
+                        ServerToWorkerMessage::SendPacketBundled(packets) => {
                             // TODO: Move buffer somewhere else so we dont reallocate for each packet
                             let mut out_buf = BytesMut::with_capacity(24590);
                             for packet in packets.iter() {
@@ -119,6 +135,7 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
                         ServerToWorkerMessage::Disconnect => {
                             bail!("disconnect by server");
                         },
+                        _ => {},
                     }
                 }
             },
@@ -129,16 +146,15 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
                     while !packets.is_empty() {
                         match ClientPacket::read_from(&mut packets) {
                             Ok(packet) => match packet {
-                                ClientPacket::Ping => {
+                                ClientPacket::Ping(_) => {
                                     log::trace!("Ping received from {:?}, sending Pong!", addr);
                                     let mut obuf = BytesMut::with_capacity(1);
-                                    GameServerPacket::Pong.write_to(&mut obuf)?;
+                                    GameServerPacket::Pong(game::Pong::default()).write_to(&mut obuf)?;
                                     framed.send(obuf).await?;
                                 },
-                                ClientPacket::Pong => todo!(),
+                                ClientPacket::Pong(_) => todo!(),
                                 packet => {
-                                    // TODO: Put packet on packet buffer
-                                    debug!("Unhandled packet:\n{:?}", packet);
+                                    packet_tx.send(packet)?;
                                 },
                             },
                             Err(e) => match e {

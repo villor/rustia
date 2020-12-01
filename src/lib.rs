@@ -10,6 +10,7 @@ pub mod components;
 pub mod util;
 pub mod tilemap;
 pub mod hierarchy;
+pub mod packet_buffers;
 
 struct GameServer {
     world: World,
@@ -21,7 +22,8 @@ pub async fn main() {
 
     world.add_unique(unique::NewClientRx(newclient_rx));
     world.add_unique(unique::CreatureIdCounter(util::atomic_counter::AtomicU32Counter::new(1)));
-
+    
+    packet_buffers::init(&world);
     systems::init(&world);
 
     tokio::spawn(network::login_listener::listen());

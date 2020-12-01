@@ -49,13 +49,13 @@ async fn handle_login(socket: TcpStream) -> Result<()> {
     framed.codec_mut().set_frame_type(FrameType::XTEA(data.xtea_key));
     let mut output = BytesMut::with_capacity(24590);
 
-    LoginServerPacket::Motd(String::from("0\nHello world!")).write_to(&mut output)?;
+    LoginServerPacket::Motd(login::Motd(String::from("0\nHello world!"))).write_to(&mut output)?;
 
     let ticks= SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() / 30;
     let session_key = format!("{}\n{}\n{}\n{}", data.account_name, data.password, data.auth_token, ticks);
-    LoginServerPacket::SessionKey(session_key).write_to(&mut output)?;
+    LoginServerPacket::SessionKey(login::SessionKey(session_key)).write_to(&mut output)?;
 
-    LoginServerPacket::CharacterList(login::CharacterListPayload {
+    LoginServerPacket::CharacterList(login::CharacterList {
         worlds: vec![login::World {
             id: 0,
             name: String::from("World"),
