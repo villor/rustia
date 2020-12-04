@@ -29,6 +29,8 @@ pub struct TibiaCodec {
 }
 
 impl TibiaCodec {
+    pub const MAX_BODY_LENGTH: usize = MAX_DATA_SIZE - CHECKSUM_SIZE - HEADER_SIZE - 10;
+
     pub fn new() -> Self {
         Self {
             state: DecodeState::Head,
@@ -119,7 +121,7 @@ impl TibiaCodec {
         }
     }
 
-    pub fn encode(&mut self, packet_data: BytesMut, dst: &mut BytesMut) -> Result<(), io::Error> {
+    pub fn encode(&mut self, packet_data: &[u8], dst: &mut BytesMut) -> Result<(), io::Error> {
         // Calculate data size and padding
         let (n, padding) = match self.frame_type {
             FrameType::Raw => (CHECKSUM_SIZE + packet_data.len(), 0),
@@ -152,7 +154,7 @@ impl TibiaCodec {
         }
 
         // Copy packet data
-        data_dst.extend_from_slice(&packet_data[..]);
+        data_dst.extend_from_slice(packet_data);
 
         // Add padding
         for _ in 0..padding {

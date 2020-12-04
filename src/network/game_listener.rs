@@ -1,9 +1,9 @@
 use std::{net::SocketAddr, time::{SystemTime, UNIX_EPOCH}};
 use tokio::net::{TcpListener, TcpStream};
-use tokio_util::codec::{Decoder};
+use tokio_util::codec::{Decoder, Framed};
 use futures::prelude::*;
 use futures::future;
-use bytes::BytesMut;
+use bytes::{BytesMut, Buf};
 use anyhow::{Result, bail};
 use log::{error, info};
 
@@ -15,7 +15,7 @@ pub enum ServerToWorkerMessage {
     PacketTransmitter(PacketTransmitter),
     SendPacket(GameServerPacket),
     SendPacketBoxed(Box<GameServerPacket>),
-    SendPacketBundled(Vec<GameServerPacket>),
+    FlushPackets,
     Disconnect,
 }
 
@@ -57,9 +57,17 @@ pub async fn listen(tx: flume::Sender<NewClientInfo>) {
     }
 }
 
+async fn flush(buffer: &mut BytesMut, framed: &mut Framed<TcpStream, TibiaCodec>) -> Result<()> {
+    framed.send(buffer.bytes()).await?;
+    framed.flush().await?;
+    buffer.clear();
+    Ok(())
+}
+
 async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: flume::Sender<NewClientInfo>) -> Result<()> {
     let mut framed = TibiaCodec::new().framed(socket);
-    let mut out_buf = BytesMut::with_capacity(24590);
+    // TODO: think about how big this buffer needs to be
+    let mut out_buf = BytesMut::with_capacity(TibiaCodec::MAX_BODY_LENGTH * 2);
 
     // Send nonce command
     framed.codec_mut().set_frame_type(FrameType::LengthPrefixed);
@@ -68,7 +76,8 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
         random_number: 23u8, // TODO: Actual random
     });
     nonce.write_to(&mut out_buf)?;
-    framed.send(out_buf).await?;
+    flush(&mut out_buf, &mut framed).await?;
+    
     framed.codec_mut().set_frame_type(FrameType::Raw);
 
     // Receive GameLogin command
@@ -105,33 +114,43 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
             bail!("did not receive packet transmitter from main thread");
         };
 
-    loop {
-        let received_msg = rx_stream.next();
-        let received_packets = framed.next();
+    let pong_buf = {
+        let mut buf = BytesMut::with_capacity(1);
+        GameServerPacket::Pong(game::Pong::default()).write_to(&mut buf)?;
+        buf
+    };
 
-        match futures::future::select(received_msg, received_packets).await {
+    loop {
+        match futures::future::select(
+            rx_stream.next(), 
+            framed.next()
+        ).await {
             future::Either::Left((msg, _)) => {
                 if let Some(msg) = msg {
                     match msg {
                         ServerToWorkerMessage::SendPacket(packet) => {
-                            // TODO: Move buffer somewhere else so we dont reallocate for each packet
-                            let mut out_buf = BytesMut::with_capacity(24590);
+                            // TODO: refactor
+                            let len_before = out_buf.len();
                             packet.write_to(&mut out_buf)?;
-                            framed.send(out_buf).await?;
+                            if out_buf.len() > TibiaCodec::MAX_BODY_LENGTH {
+                                let last_packet = out_buf.split_off(len_before);
+                                flush(&mut out_buf, &mut framed).await?;
+                                out_buf.extend_from_slice(last_packet.as_ref());
+                            }
                         },
                         ServerToWorkerMessage::SendPacketBoxed(packet) => {
-                            let mut out_buf = BytesMut::with_capacity(24590);
+                            // TODO: refactor
+                            let len_before = out_buf.len();
                             packet.write_to(&mut out_buf)?;
-                            framed.send(out_buf).await?;
-                        },
-                        ServerToWorkerMessage::SendPacketBundled(packets) => {
-                            // TODO: Move buffer somewhere else so we dont reallocate for each packet
-                            let mut out_buf = BytesMut::with_capacity(24590);
-                            for packet in packets.iter() {
-                                packet.write_to(&mut out_buf)?;
+                            if out_buf.len() > TibiaCodec::MAX_BODY_LENGTH {
+                                let last_packet = out_buf.split_off(len_before);
+                                flush(&mut out_buf, &mut framed).await?;
+                                out_buf.extend_from_slice(last_packet.as_ref());
                             }
-                            framed.send(out_buf).await?;
                         },
+                        ServerToWorkerMessage::FlushPackets => {
+                            flush(&mut out_buf, &mut framed).await?;
+                        }
                         ServerToWorkerMessage::Disconnect => {
                             bail!("disconnect by server");
                         },
@@ -148,9 +167,7 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
                             Ok(packet) => match packet {
                                 ClientPacket::Ping(_) => {
                                     log::trace!("Ping received from {:?}, sending Pong!", addr);
-                                    let mut obuf = BytesMut::with_capacity(1);
-                                    GameServerPacket::Pong(game::Pong::default()).write_to(&mut obuf)?;
-                                    framed.send(obuf).await?;
+                                    framed.send(pong_buf.bytes()).await?;
                                 },
                                 ClientPacket::Pong(_) => todo!(),
                                 packet => {

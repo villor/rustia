@@ -54,8 +54,9 @@ impl PacketWrite for String {
     }
 }
 
-pub trait PacketPayload {
+pub trait PacketPayload<T> {
     fn index() -> usize;
+    fn kind() -> T;
 }
 
 /// Generates an enum with packet types
@@ -117,9 +118,19 @@ macro_rules! gen_packet_types {
                 }
             }
 
-            impl PacketPayload for $var {
+            impl Into<$name> for $var {
+                fn into(self) -> $name {
+                    $name::$var(self)
+                }
+            }
+
+            impl PacketPayload<$name_kind> for $var {
                 fn index() -> usize {
-                    $name_kind::$var as usize
+                    Self::kind() as usize
+                }
+
+                fn kind() -> $name_kind {
+                    $name_kind::$var
                 }
             }
         )+

@@ -19,7 +19,9 @@ pub fn init(world: &World) {
          mut items: ViewMut<Item>| {
             for x in 0..100 {
                 for y in 0..100 {
-                    let tile = hierarchy.0.add_entity(&mut tiles, Tile {});
+                    let tile = hierarchy.0.add_entity(&mut tiles, Tile {
+                        position: Position { x, y, z: 7 }
+                    });
                     let ground = hierarchy.0.add_entity(&mut items, Item {
                         client_id: rng.gen_range(351, 356)
                     });
@@ -160,7 +162,7 @@ pub fn get_tile(
                         mount: 0,
                     },
                     light: packet::LightInfo { light_level: 0xFF, light_color: 0xFF },
-                    speed: 10, // player min speed
+                    speed: 200, 
                     skull: 0, //none
                     shield: 0, // none
                     summon_type: 0,

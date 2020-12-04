@@ -19,7 +19,13 @@ gen_packet_types!(GameServerPacket; GameServerPacketKind;
     ( WorldRowNorth,       101 ),
     ( WorldRowEast,        102 ),
     ( WorldRowSouth,       103 ),
-    ( WorldRowWest,        104 )
+    ( WorldRowWest,        104 ),
+
+    ( AddTileThing,        106 ),
+    //( UpdateTileThing,     107 ),
+    ( DeleteTileThing,     108 ),
+
+    ( MoveCreature,        109 )
 );
 
 #[derive(Debug, Default)]
@@ -41,6 +47,29 @@ impl PacketWrite for PendingStateEntered {}
 pub struct EnterWorld;
 impl PacketRead for EnterWorld {}
 impl PacketWrite for EnterWorld {}
+
+#[derive(Debug, Default)]
+pub struct MoveCreature {
+    pub old_position: Position,
+    pub old_stack_index: u8,
+    pub new_position: Position,
+}
+
+impl PacketRead for MoveCreature {
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized {
+        todo!()
+    }
+}
+
+impl PacketWrite for MoveCreature {
+    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+        out.put_t(&self.old_position)?;
+        out.put_u8(self.old_stack_index);
+        out.put_t(&self.new_position)?;
+        Ok(())
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct Nonce {
@@ -345,6 +374,12 @@ pub enum Thing {
     Creature(Creature),
 }
 
+impl Default for Thing {
+    fn default() -> Self {
+        Thing::Item(Item::default())
+    }
+}
+
 impl PacketRead for Thing {
     fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
@@ -358,6 +393,50 @@ impl PacketWrite for Thing {
             Thing::Item(item) => out.put_t(item)?,
             Thing::Creature(creature) => out.put_t(creature)?,
         };
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct AddTileThing {
+    pub position: Position,
+    pub stack_index: u8,
+    pub thing: Thing,
+}
+
+impl PacketRead for AddTileThing {
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized {
+        todo!()
+    }
+}
+
+impl PacketWrite for AddTileThing {
+    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+        out.put_t(&self.position)?;
+        out.put_u8(self.stack_index);
+        out.put_t(&self.thing)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct DeleteTileThing {
+    pub position: Position,
+    pub stack_index: u8,
+}
+
+impl PacketRead for DeleteTileThing {
+    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    where Self: std::marker::Sized {
+        todo!()
+    }
+}
+
+impl PacketWrite for DeleteTileThing {
+    fn write_to(&self, out: &mut BytesMut) -> Result<(), PacketError> {
+        out.put_t(&self.position)?;
+        out.put_u8(self.stack_index);
         Ok(())
     }
 }

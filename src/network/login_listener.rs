@@ -3,7 +3,7 @@ use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio_util::codec::{Decoder};
 use futures::prelude::*;
-use bytes::BytesMut;
+use bytes::{Buf, BytesMut};
 use anyhow::{Result, bail};
 use log::{error, info};
 
@@ -70,7 +70,7 @@ async fn handle_login(socket: TcpStream) -> Result<()> {
         premium_days_left: 0,
     }).write_to(&mut output)?;
     
-    framed.send(output).await?;
+    framed.send(output.bytes()).await?;
 
     info!("Character list sent to {:?}", peer_addr);
 

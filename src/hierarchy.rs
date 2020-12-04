@@ -1,14 +1,14 @@
 use shipyard::*;
 
 pub struct Parent {
-    num_children: usize,
-    first_child: EntityId,
+    pub num_children: usize,
+    pub first_child: EntityId,
 }
 
 pub struct Child {
-    parent: EntityId,
-    prev: EntityId,
-    next: EntityId,
+    pub parent: EntityId,
+    pub prev: EntityId,
+    pub next: EntityId,
 }
 
 //pub type HierarchyViewMut<'a> = (EntitiesViewMut<'a>, ViewMut<'a, Parent>, ViewMut<'a, Child>);

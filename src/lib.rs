@@ -11,6 +11,7 @@ pub mod util;
 pub mod tilemap;
 pub mod hierarchy;
 pub mod packet_buffers;
+pub mod constants;
 
 struct GameServer {
     world: World,
