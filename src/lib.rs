@@ -20,7 +20,7 @@ struct GameServer {
 pub async fn main() {
     let world = World::new();
     let (newclient_tx, newclient_rx) = flume::unbounded();
-
+    
     world.add_unique(unique::NewClientRx(newclient_rx));
     world.add_unique(unique::CreatureIdCounter(util::atomic_counter::AtomicU32Counter::new(1)));
     
