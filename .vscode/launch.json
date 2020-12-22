@@ -10,7 +10,11 @@
             "name": "Debug",
             "program": "${workspaceFolder}/target/debug/rust-ots",
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "terminal": "integrated",
+            "env": {
+                "RUST_LOG": "debug",
+            }
         }
     ]
 }
