@@ -23,7 +23,7 @@ pub fn init(world: &World) {
                         position: Position { x, y, z: 7 }
                     });
                     let ground = hierarchy.0.add_entity(&mut items, Item {
-                        client_id: rng.gen_range(351, 356)
+                        client_id: rng.gen_range(351..356)
                     });
 
                     hierarchy.attach(ground, tile);
