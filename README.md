@@ -1,0 +1,2 @@
+# Rustia
+OpenTibia in Rust
