@@ -1,5 +1,4 @@
-#[tokio::main]
-async fn main() {
+fn main() {
     env_logger::init();
-    rust_ots::main().await;
+    rust_ots::main();
 }

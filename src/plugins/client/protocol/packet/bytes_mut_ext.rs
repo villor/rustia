@@ -18,7 +18,7 @@ pub trait BytesMutExt {
 
 impl BytesMutExt for BytesMut {
     fn peek_u8(&mut self) -> u8 {
-        *self.bytes().first().unwrap()
+        *self.as_ref().first().unwrap()
     }
 
     /*fn peek_u16_le(&mut self) -> u16 {

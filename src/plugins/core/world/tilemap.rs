@@ -1,10 +1,12 @@
-use shipyard::EntityId;
-use crate::protocol::packet::game::Position;
+use bevy::prelude::Entity;
+use crate::types::Position;
+
+const FLOOR_COUNT: u8 = 16;
 
 pub struct TileMap {
     width: u16,
     height: u16,
-    tiles: Vec<EntityId>,
+    tiles: Vec<Option<Entity>>,
 }
 
 impl TileMap {
@@ -12,9 +14,12 @@ impl TileMap {
         Self {
             width,
             height,
-            tiles: vec![EntityId::dead(); width as usize * height as usize * 16],
+            tiles: vec![None; width as usize * height as usize * FLOOR_COUNT as usize],
         }
     }
+
+    pub fn width(&self) -> u16 { self.width }
+    pub fn height(&self) -> u16 { self.height }
 
     fn get_index(&self, pos: Position) -> usize {
         pos.x as usize
@@ -24,15 +29,15 @@ impl TileMap {
 
     pub fn clear_tile(&mut self, pos: Position) {
         let index = self.get_index(pos);
-        self.tiles[index] = EntityId::dead();
+        self.tiles[index] = None;
     }
 
-    pub fn set_tile(&mut self, pos: Position, entity: EntityId) {
+    pub fn set_tile(&mut self, pos: Position, entity: Entity) {
         let index = self.get_index(pos);
-        self.tiles[index] = entity;
+        self.tiles[index] = Some(entity);
     }
 
-    pub fn get_tile(&self, pos: Position) -> EntityId {
+    pub fn get_tile(&self, pos: Position) -> Option<Entity> {
         self.tiles[self.get_index(pos)]
     }
 }

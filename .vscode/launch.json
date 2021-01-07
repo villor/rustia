@@ -7,14 +7,19 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug",
-            "program": "${workspaceFolder}/target/debug/rust-ots",
+            "name": "Cargo launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=rust-ots"
+                ]
+            },
+            "program": "${cargo:program}",
             "args": [],
-            "cwd": "${workspaceFolder}",
             "terminal": "integrated",
             "env": {
                 "RUST_LOG": "debug",
             }
-        }
+        },
     ]
 }

@@ -1,14 +1,14 @@
 use std::convert::TryFrom;
+use bevy::{ecs::Entity, prelude::AppBuilder};
 
-use shipyard::{World, EntityId};
 use super::protocol::packet::PacketPayload;
 use super::protocol::packet::client::{self, ClientPacket};
 
 pub struct PacketBuffer<T>
 where T: TryFrom<ClientPacket> {
     phantom: std::marker::PhantomData<T>,
-    tx: flume::Sender<(EntityId, ClientPacket)>,
-    rx: flume::Receiver<(EntityId, ClientPacket)>,
+    tx: flume::Sender<(Entity, ClientPacket)>,
+    rx: flume::Receiver<(Entity, ClientPacket)>,
 }
 
 impl<T> Default for PacketBuffer<T>
@@ -28,7 +28,7 @@ where T: TryFrom<ClientPacket> {
         }
     }
 
-    pub fn poll(&self) -> Option<(EntityId, T)> {
+    pub fn poll(&self) -> Option<(Entity, T)> {
         if let Ok((entity_id, client_packet)) = self.rx.try_recv() {
             if let Ok(packet) = T::try_from(client_packet) {
                 return Some((entity_id, packet))
@@ -41,12 +41,12 @@ where T: TryFrom<ClientPacket> {
 #[derive(Debug, Clone)]
 enum PacketTransmitterKind {
     Template,
-    Client(EntityId),
+    Client(Entity),
 }
 
 #[derive(Clone)]
 pub struct PacketTransmitter {
-    tx: Vec<Option<flume::Sender<(EntityId, ClientPacket)>>>,
+    tx: Vec<Option<flume::Sender<(Entity, ClientPacket)>>>,
     kind: PacketTransmitterKind,
 }
 
@@ -64,7 +64,7 @@ impl PacketTransmitter {
         }
     }
 
-    pub fn clone_for_client(&self, entity_id: EntityId) -> Self {
+    pub fn clone_for_client(&self, entity_id: Entity) -> Self {
         let mut pt = self.clone();
         pt.kind = PacketTransmitterKind::Client(entity_id);
         pt
@@ -86,20 +86,20 @@ impl PacketTransmitter {
 }
 
 macro_rules! add_packet_buffer {
-    ($packet_payload:ty, $packet_tx_template:expr, $world:expr) => {
+    ($packet_payload:ty, $packet_tx_template:expr, $app:expr) => {
         let packet_buffer = PacketBuffer::<$packet_payload>::new();
         $packet_tx_template.tx[<$packet_payload>::index()] = Some(packet_buffer.tx.clone());
-        $world.add_unique(packet_buffer);
+        $app.add_resource(packet_buffer);
     }
 }
 
-pub fn init(world: &World) {
+pub fn init(app: &mut AppBuilder) {
     let mut packet_tx_template = PacketTransmitter::new();
 
-    add_packet_buffer!(client::WalkNorth, packet_tx_template, world);
-    add_packet_buffer!(client::WalkEast, packet_tx_template, world);
-    add_packet_buffer!(client::WalkSouth, packet_tx_template, world);
-    add_packet_buffer!(client::WalkWest, packet_tx_template, world);
+    add_packet_buffer!(client::WalkNorth, packet_tx_template, app);
+    add_packet_buffer!(client::WalkEast, packet_tx_template, app);
+    add_packet_buffer!(client::WalkSouth, packet_tx_template, app);
+    add_packet_buffer!(client::WalkWest, packet_tx_template, app);
 
-    world.add_unique(packet_tx_template);
+    app.add_resource(packet_tx_template);
 }

@@ -1,24 +1,5 @@
-use crate::network::game_listener::{ServerToWorkerMessage, WorkerToServerMessage};
-use crate::protocol::packet::GameServerPacket;
-use crate::protocol::packet::game::Position;
-use crate::constants::Direction;
-
-pub struct Tile {
-    pub position: Position,
-}
-
-pub struct Creature {
-    pub id: u32,
-}
-
-pub struct Item {
-    pub client_id: u16,
-}
-
-pub struct Move {
-    pub next_direction: Direction,
-    pub speed: u16,
-}
+use super::network::game_listener::{ServerToWorkerMessage, WorkerToServerMessage};
+use super::protocol::packet::GameServerPacket;
 
 pub struct Client {
     pub addr: std::net::SocketAddr,

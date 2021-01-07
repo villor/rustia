@@ -5,5 +5,5 @@ pub enum Direction {
     South = 2,
     West = 3,
     // ...
-    None = 8,
+    //None = 8,
 }

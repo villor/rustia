@@ -1,6 +1,7 @@
 
 use bytes::{Buf, BufMut, BytesMut};
 use super::{PacketError, BytesMutExt, PacketRead, PacketWrite, PacketPayload};
+use crate::types::Position;
 
 use crate::gen_packet_types;
 
@@ -155,13 +156,6 @@ impl PacketWrite for PlayerDataBasic {
         }
         Ok(())
     }
-}
-
-#[derive(Debug, Default, Copy, Clone)]
-pub struct Position {
-    pub x: u16,
-    pub y: u16,
-    pub z: u8,
 }
 
 impl PacketRead for Position {

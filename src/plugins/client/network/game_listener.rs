@@ -3,11 +3,11 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Decoder, Framed};
 use futures::prelude::*;
 use futures::future;
-use bytes::{BytesMut, Buf};
+use bytes::BytesMut;
 use anyhow::{Result, bail};
 use log::{error, info};
 
-use crate::packet_buffers::PacketTransmitter;
+use super::packet_buffers::PacketTransmitter;
 use super::protocol::{TibiaCodec, FrameType};
 use super::protocol::packet::*;
 
@@ -58,7 +58,7 @@ pub async fn listen(tx: flume::Sender<NewClientInfo>) {
 }
 
 async fn flush(buffer: &mut BytesMut, framed: &mut Framed<TcpStream, TibiaCodec>) -> Result<()> {
-    framed.send(buffer.bytes()).await?;
+    framed.send(buffer.as_ref()).await?;
     framed.flush().await?;
     buffer.clear();
     Ok(())
@@ -167,7 +167,7 @@ async fn handle_connection(socket: TcpStream, addr: SocketAddr, newclient_tx: fl
                             Ok(packet) => match packet {
                                 ClientPacket::Ping(_) => {
                                     log::trace!("Ping received from {:?}, sending Pong!", addr);
-                                    framed.send(pong_buf.bytes()).await?;
+                                    framed.send(pong_buf.as_ref()).await?;
                                 },
                                 ClientPacket::Pong(_) => todo!(),
                                 packet => {

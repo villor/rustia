@@ -71,7 +71,7 @@ impl TibiaCodec {
         let recv_checksum = data.split_to(CHECKSUM_SIZE).get_u32_le();
         let checksum = match data.remaining() {
             0 => 0,
-            _ => adler32(data.bytes())?,
+            _ => adler32(data.as_ref())?,
         };
 
         if recv_checksum != checksum {
