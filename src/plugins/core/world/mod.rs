@@ -17,20 +17,13 @@ pub fn load_map(world: &mut World, resources: &mut Resources) {
     for x in 0..100 {
         for y in 0..100 {
             let position = Position { x, y, z: 7 };
-            
-            let tile = world.reserve_entity();
 
             let ground_item = world.spawn((
                 Item { client_id: rng.gen_range(351..356) },
-                TileThing { tile },
+                TileThing { position },
             ));
 
-            world.insert_one(tile, Tile {
-                position,
-                things: SmallVec::from_slice(&[ground_item]),
-            }).unwrap();
-
-            tilemap.set_tile(position, tile);
+            tilemap.get_tile_mut(position).push(ground_item);
         }
     }
 

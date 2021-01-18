@@ -29,27 +29,27 @@ gen_packet_types!(GameServerPacket; GameServerPacketKind;
     ( MoveCreature,        109 )
 );
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Ping;
 impl PacketRead for Ping {}
 impl PacketWrite for Ping {}
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Pong;
 impl PacketRead for Pong {}
 impl PacketWrite for Pong {}
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PendingStateEntered;
 impl PacketRead for PendingStateEntered {}
 impl PacketWrite for PendingStateEntered {}
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct EnterWorld;
 impl PacketRead for EnterWorld {}
 impl PacketWrite for EnterWorld {}
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MoveCreature {
     pub old_position: Position,
     pub old_stack_index: u8,
@@ -72,7 +72,7 @@ impl PacketWrite for MoveCreature {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Nonce {
     pub timestamp: u32,
     pub random_number: u8,
@@ -93,7 +93,7 @@ impl PacketWrite for Nonce {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LoginSuccess {
     pub player_id: u32,
     pub beat_duration: u16,
@@ -130,7 +130,7 @@ impl PacketWrite for LoginSuccess {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct PlayerDataBasic {
     pub is_premium: bool,
     pub premium_until: u32,
@@ -174,7 +174,7 @@ impl PacketWrite for Position {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LightInfo {
     pub light_level: u8,
     pub light_color: u8,
@@ -195,7 +195,7 @@ impl PacketWrite for LightInfo {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Item {
     pub client_id: u16,
     pub stack_size: Option<u8>,
@@ -230,7 +230,7 @@ impl PacketWrite for Item {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Outfit {
     LookType {
         look_type: u16,
@@ -282,7 +282,7 @@ impl PacketWrite for Outfit {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CreatureKnown {
     Yes,
     No {
@@ -299,7 +299,7 @@ impl Default for CreatureKnown {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Creature {
     pub id: u32,
     pub known: CreatureKnown,
@@ -362,7 +362,7 @@ impl PacketWrite for Creature {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Thing {
     Item(Item),
     Creature(Creature),
@@ -391,7 +391,7 @@ impl PacketWrite for Thing {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct AddTileThing {
     pub position: Position,
     pub stack_index: u8,
@@ -414,7 +414,7 @@ impl PacketWrite for AddTileThing {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct DeleteTileThing {
     pub position: Position,
     pub stack_index: u8,
@@ -435,7 +435,7 @@ impl PacketWrite for DeleteTileThing {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Tile {
     pub environmental_effects: u16,
     pub things: [Option<Thing>; 10],
@@ -462,7 +462,7 @@ impl PacketWrite for Tile {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum WorldData {
     Tile(Tile),
     Empty(usize),
@@ -519,7 +519,7 @@ impl PacketWrite for Vec<WorldData> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct FullWorld {
     pub player_position: Position,
     pub world_chunk: Vec<WorldData>,
@@ -540,7 +540,7 @@ impl PacketWrite for FullWorld {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct WorldRowNorth {
     pub world_chunk: Vec<WorldData>,
 }
@@ -559,7 +559,7 @@ impl PacketWrite for WorldRowNorth {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct WorldRowEast {
     pub world_chunk: Vec<WorldData>,
 }
@@ -578,7 +578,7 @@ impl PacketWrite for WorldRowEast {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct WorldRowWest {
     pub world_chunk: Vec<WorldData>,
 }
@@ -597,7 +597,7 @@ impl PacketWrite for WorldRowWest {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct WorldRowSouth {
     pub world_chunk: Vec<WorldData>,
 }
@@ -616,7 +616,7 @@ impl PacketWrite for WorldRowSouth {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct WorldLight {
     pub light: LightInfo,
 }
@@ -635,7 +635,7 @@ impl PacketWrite for WorldLight {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CreatureLight {
     pub creature_id: u32,
     pub light: LightInfo,

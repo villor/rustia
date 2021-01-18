@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::plugins::core::components::*;
-use crate::plugins::core::world::tilemap::TileMap;
+use crate::plugins::core::world::tilemap::*;
 use crate::types::Position;
 use super::protocol::packet::game as packet;
 
@@ -36,8 +36,6 @@ pub fn convert_world_chunk(
         nz += zstep;
     }
 
-    log::info!("{:#?}", out);
-
     out
 }
 
@@ -51,15 +49,15 @@ pub fn get_world_layer(
     let mut skip = 0;
     for nx in 0..width {
         for ny in 0..height {
-            if let Some(tile) = tilemap.get_tile(Position { x: pos.x + nx, y: pos.y + ny, z: pos.z }) {
+            let tile = tilemap.get_tile(Position { x: pos.x + nx, y: pos.y + ny, z: pos.z });
+            if tile.is_dead() {
+                skip += 1;
+            } else {
                 if skip > 0 {
                     out.push(packet::WorldData::Empty(skip));
                     skip = 0;
                 }
-
                 out.push(packet::WorldData::Tile(convert_tile(world, tile)));
-            } else {
-                skip += 1;
             }
         }
     }
@@ -69,64 +67,72 @@ pub fn get_world_layer(
     }
 }
 
-pub fn convert_tile(world: &World, entity: Entity) -> packet::Tile {
-    if let Ok(tile) = world.get::<Tile>(entity) {
-        let mut things = tile.things.iter().filter_map(|thing| {
-            if let Ok(item) = world.get::<Item>(*thing) {
-                Some(packet::Thing::Item(packet::Item {
-                    client_id: item.client_id,
-                    stack_size: None,
-                    fluid: None,
-                    animation: None,
-                }))
-            } else if let Ok(creature) = world.get::<Creature>(*thing) {
-                Some(packet::Thing::Creature(packet::Creature {
-                    id: creature.id,
-                    known: packet::CreatureKnown::No {
-                        remove: 0,
-                        creature_type: 0, // player
-                        creature_name: String::from("Hello"),
-                        guild_emblem: 0,
-                    },
-                    health: 50,
-                    direction: 2, //south
-                    outfit: packet::Outfit::LookType {
-                        look_type: 128, // male citizen
-                        head: 0,
-                        body: 0,
-                        legs: 0,
-                        feet: 0,
-                        addons: 0,
-                        mount: 0,
-                    },
-                    light: packet::LightInfo { light_level: 0xFF, light_color: 0xFF },
-                    speed: 200, 
-                    skull: 0, //none
-                    shield: 0, // none
-                    summon_type: 0,
-                    speech_bubble: 0,
-                    helpers: 0x00,
-                    walk_through: false,
-                }))
-            } else {
-                None
-            }
-        });
+pub fn convert_tile(world: &World, tile: &Tile) -> packet::Tile {
+    let mut things = tile.things_iter()
+        .filter_map(|thing| convert_tile_thing(world, *thing));
 
-        packet::Tile {
-            environmental_effects: 0x00,
-            things: [
-                things.next(), things.next(),
-                things.next(), things.next(),
-                things.next(), things.next(),
-                things.next(), things.next(),
-                things.next(), things.next(),
-            ],
-        }
+    packet::Tile {
+        environmental_effects: 0x00,
+        things: [
+            things.next(), things.next(),
+            things.next(), things.next(),
+            things.next(), things.next(),
+            things.next(), things.next(),
+            things.next(), things.next(),
+        ],
+    }
+}
+
+pub fn convert_tile_thing(world: &World, thing: Entity) -> Option<packet::Thing> {
+    if let Ok(item) = world.get::<Item>(thing) {
+        Some(packet::Thing::Item(convert_item(item)))
+    } else if let Ok(creature) = world.get::<Creature>(thing) {
+        Some(packet::Thing::Creature(convert_creature(world, thing, creature)))
     } else {
-        packet::Tile {
-            environmental_effects: 0x00,
-            things: [None, None, None, None, None, None, None, None, None, None],
-        }
+        None
+    }
+}
+
+pub fn convert_item(item: &Item) -> packet::Item {
+    packet::Item {
+        client_id: item.client_id,
+        stack_size: None,
+        fluid: None,
+        animation: None,
+    }
+}
+
+pub fn convert_creature(
+    world: &World,
+    entity: Entity,
+    creature: &Creature,
+) -> packet::Creature {
+    packet::Creature {
+        id: creature.id,
+        known: packet::CreatureKnown::No {
+            remove: 0,
+            creature_type: 0, // player
+            creature_name: creature.name.clone(),
+            guild_emblem: 0,
+        },
+        health: 50,
+        direction: 2, //south
+        outfit: packet::Outfit::LookType {
+            look_type: 128, // male citizen
+            head: 0,
+            body: 0,
+            legs: 0,
+            feet: 0,
+            addons: 0,
+            mount: 0,
+        },
+        light: packet::LightInfo { light_level: 0xFF, light_color: 0xFF },
+        speed: 200, 
+        skull: 0, //none
+        shield: 0, // none
+        summon_type: 0,
+        speech_bubble: 0,
+        helpers: 0x00,
+        walk_through: false,
     }
 }

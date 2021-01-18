@@ -6,15 +6,17 @@ use bevy::prelude::*;
 
 pub mod packet_buffers;
 pub mod protocol;
-mod components;
+pub mod components;
 mod tokio_runtime;
 mod network;
 mod packet_conversion;
 
 use network::game_listener::{NewClientInfo, ServerToWorkerMessage};
-use packet_buffers::PacketTransmitter;
-use protocol::packet::game;
-use super::core::{resources::CreatureIdCounter, world::tilemap::TileMap};
+use packet_buffers::{PacketBuffer, PacketTransmitter};
+use packet_conversion::*;
+use protocol::packet::{self, game};
+use components::*;
+use super::core::world::tilemap::TileMap;
 use super::core::components::*;
 use crate::types::Position;
 
@@ -34,88 +36,105 @@ impl Plugin for ClientPlugin {
 
         app
             .add_resource(NewClientRx(newclient_rx))
-            .add_system(player_connect_system.system());
+            .add_system_to_stage(stage::PRE_UPDATE, receive_movement.system())
+            .add_system_to_stage(stage::POST_UPDATE, new_client_system.system())
+            .add_system_to_stage(stage::POST_UPDATE, send_login_success.system())
+            .add_system_to_stage(stage::POST_UPDATE, send_add_tile_thing.system());
     }
 }
 
 pub struct NewClientRx(pub flume::Receiver<NewClientInfo>);
 
-fn player_connect_system(world: &mut World, resources: &mut Resources) {
+/// Receives new clients from the listener thread and spawns entities
+fn new_client_system(world: &mut World, resources: &mut Resources) {
     let new_client_rx = resources.get::<NewClientRx>().unwrap();
     while let Ok(new_client) = new_client_rx.0.try_recv() {
-        log::info!("Player connected {}", new_client.player_name);
+        log::debug!("New client connected. Spawning entity...");
+        world.spawn((Client::new(new_client),));
+    }
+}
 
-        // Fetch resources
-        let creature_id_counter = resources.get::<CreatureIdCounter>().unwrap();
-        let tilemap = resources.get::<TileMap>().unwrap();
-        let packet_tx = resources.get::<PacketTransmitter>().unwrap();
+fn receive_movement(
+    north: Res<PacketBuffer<packet::client::WalkNorth>>,
+    west: Res<PacketBuffer<packet::client::WalkWest>>,
+    south: Res<PacketBuffer<packet::client::WalkSouth>>,
+    east: Res<PacketBuffer<packet::client::WalkEast>>,
+) {
+    
+}
 
-        let mut new_client = components::Client {
-            addr: new_client.addr,
-            sender: new_client.sender,
-            receiver: new_client.receiver,
-            dirty: false,
-        };
+/// Send login success and initial data when a new player is added to an entity with a Client component
+fn send_login_success(world: &mut World, resources: &mut Resources) {
+    let tilemap = resources.get::<TileMap>().unwrap();
+    let packet_tx = resources.get::<PacketTransmitter>().unwrap();
+    
+    for (entity, creature, tile_thing, client) in world.query_filtered::<(Entity, &Creature, &TileThing, &Client), Added<Player>>() {
+        log::debug!("Player spawned. Sending login success to client...");
 
-        let player_id = creature_id_counter.0.inc();
-        let spawn_position = Position { x: 50, y: 50, z: 7 };
-
-        let tile = tilemap.get_tile(spawn_position).unwrap(); // TODO: check if tile exists
-
-        let player = world.spawn((
-            Player,
-            Creature { id: player_id },
-            TileThing { tile },
-        ));
-        world.get_mut::<Tile>(tile).unwrap().things.push(player);
-
-        let _ = new_client.sender.send(
-            ServerToWorkerMessage::PacketTransmitter(packet_tx.clone_for_client(player))
+        let _ = client.sender.send(
+            ServerToWorkerMessage::PacketTransmitter(packet_tx.clone_for_client(entity))
         );
 
-        new_client.send_packet(make_login_success(player_id));
-        new_client.send_packet(game::PendingStateEntered::default());
-        new_client.send_packet(game::EnterWorld::default());
-        new_client.send_packet(game::FullWorld {
-            player_position: spawn_position,
+        client.send_packet(game::LoginSuccess {
+            player_id: creature.id,
+            beat_duration: 0x32, // 50 from tfs
+            speed_a: 857.36,
+            speed_b: 261.29,
+            speed_c: -4795.01,
+            is_tutor: false,
+            pvp_framing: false,
+            expert_mode: false,
+            store_img_url: String::new(),
+            coin_package_size: 25,
+        });
+        client.send_packet(game::PendingStateEntered::default());
+        client.send_packet(game::EnterWorld::default());
+        client.send_packet(game::FullWorld {
+            player_position: tile_thing.position,
             world_chunk: packet_conversion::convert_world_chunk(
                 world,
                 &tilemap,
-                Position { x: spawn_position.x - 8, y: spawn_position.y - 6, z: 7 },
+                Position { x: tile_thing.position.x - 8, y: tile_thing.position.y - 6, z: 7 },
                 18,
                 14,
             ),
         });
-        new_client.send_packet(game::WorldLight {
+        client.send_packet(game::WorldLight {
             light: game::LightInfo { light_level: 0xFF, light_color: 0xD7 }
         });
-        new_client.send_packet(game::CreatureLight {
-            creature_id: player_id,
+        client.send_packet(game::CreatureLight {
+            creature_id: creature.id,
             light: game::LightInfo { light_level: 0x00, light_color: 0x00 },
         });
-        new_client.send_packet(game::PlayerDataBasic {
+        client.send_packet(game::PlayerDataBasic {
             is_premium: false,
             premium_until: 0,
             vocation_id: 0,
             known_spells: vec![],
         });
-        new_client.flush_packets();
-
-        world.insert_one(player, new_client).unwrap();
+        client.flush_packets();
     }
 }
 
-fn make_login_success(player_id: u32) -> game::LoginSuccess {
-    game::LoginSuccess {
-        player_id,
-        beat_duration: 0x32, // 50 from tfs
-        speed_a: 857.36,
-        speed_b: 261.29,
-        speed_c: -4795.01,
-        is_tutor: false,
-        pvp_framing: false,
-        expert_mode: false,
-        store_img_url: String::new(),
-        coin_package_size: 25,
+fn send_add_tile_thing(world: &mut World, resources: &mut Resources) {
+    let tilemap = resources.get::<TileMap>().unwrap();
+    // TODO: Make sure this doesnt run for tile things added during map load
+    for (entity, tile_thing) in world.query_filtered::<(Entity, &TileThing), Added<TileThing>>() {
+        log::debug!("Tile thing spawned. Sending AddTileThing to clients...");
+
+        let tile = tilemap.get_tile(tile_thing.position);
+
+        let payload = game::AddTileThing {
+            position: tile_thing.position,
+            stack_index: tile.thing_index(entity).unwrap() as u8,
+            thing: convert_tile_thing(world, entity).unwrap(),
+        };
+
+        // TODO: Limit spectators
+        for (spectator, client) in world.query::<(Entity, &Client)>() {
+            if spectator != entity {
+                client.send_packet(payload.clone());
+            }
+        }
     }
 }
