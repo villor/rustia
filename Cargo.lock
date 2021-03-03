@@ -8,23 +8,6 @@ checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
 name = "ahash"
-version = "0.4.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "739f4a8db6605981345c5654f3a85b056ce52f37a39d34da03f25bf2151ea16e"
-
-[[package]]
-name = "ahash"
-version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "796540673305a66d127804eef19ad696f1f204b8c1025aaca4958c17eab32877"
-dependencies = [
- "getrandom",
- "once_cell",
- "version_check",
-]
-
-[[package]]
-name = "ahash"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f200cbb1e856866d9eade941cf3aa0c5d7dd36f74311c4273b494f4ef036957"
@@ -75,18 +58,6 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
-
-[[package]]
-name = "feather-ecs"
-version = "0.1.0"
-source = "git+https://github.com/feather-rs/feather.git?rev=9fa7bd6#9fa7bd6c2b40da56d4b04a9f763132b6f61ce75a"
-dependencies = [
- "ahash 0.6.3",
- "anyhow",
- "hecs",
- "log",
- "thiserror",
-]
 
 [[package]]
 name = "flume"
@@ -204,23 +175,6 @@ dependencies = [
  "libc",
  "wasi",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "hashbrown"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7afe4a420e3fe79967a00898cc1f4db7c8a49a9333a29f8a4bd76a253d5cd04"
-dependencies = [
- "ahash 0.4.7",
-]
-
-[[package]]
-name = "hecs"
-version = "0.3.2"
-source = "git+https://github.com/feather-rs/feather-hecs#824712c4e4ab658e75fabf2a91a54f9d1c0b1790"
-dependencies = [
- "hashbrown",
 ]
 
 [[package]]
@@ -477,9 +431,8 @@ version = "0.1.0"
 name = "rustia-game"
 version = "0.1.0"
 dependencies = [
- "ahash 0.7.2",
+ "ahash",
  "anyhow",
- "feather-ecs",
  "flume",
  "log",
  "parking_lot",

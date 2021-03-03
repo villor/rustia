@@ -7,8 +7,6 @@ edition = "2018"
 [dependencies]
 base = { path = "../base", package = "rustia-base" }
 
-feather-ecs = { git = "https://github.com/feather-rs/feather.git", rev = "9fa7bd6" }
-
 smartstring = "0.2"
 log = "0.4"
 anyhow = "1"
