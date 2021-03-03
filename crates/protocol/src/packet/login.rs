@@ -94,9 +94,37 @@ pub struct CharacterList {
 }
 
 impl PacketRead for CharacterList {
-    fn read_from(_data: &mut BytesMut) -> Result<Self, PacketError>
+    fn read_from(data: &mut BytesMut) -> Result<Self, PacketError>
     where Self: std::marker::Sized {
-        todo!()
+        let worlds_len = data.get_u8();
+        let mut worlds: Vec<World> = Vec::with_capacity(worlds_len as usize);
+        for _ in 0..worlds_len {
+            worlds.push(World {
+                id: data.get_u8(),
+                name: data.get_string()?,
+                ip: data.get_string()?,
+                port: data.get_u16_le(),
+            });
+            data.get_u8(); // skip something, why?
+        }
+
+        let chars_len = data.get_u8();
+        let mut characters: Vec<Character> = Vec::with_capacity(chars_len as usize);
+        for _ in 0..chars_len {
+            characters.push(Character {
+                world_id: data.get_u8(),
+                name: data.get_string()?,
+            });
+        }
+
+        data.get_u8(); // skip something
+        
+        Ok(CharacterList {
+            worlds,
+            characters,
+            has_premium: data.get_u8() > 0,
+            premium_days_left: data.get_u32_le(),
+        })
     }
 }
 

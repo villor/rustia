@@ -1,6 +1,7 @@
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::io;
 use adler32::adler32;
+use tokio_util::codec::{Encoder, Decoder};
 
 use super::util::xtea;
 
@@ -15,7 +16,7 @@ enum DecodeState {
     Data(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FrameType {
     Raw,
     LengthPrefixed, // Nonce
@@ -36,6 +37,10 @@ impl TibiaCodec {
             state: DecodeState::Head,
             frame_type: FrameType::Raw,
         }
+    }
+
+    pub fn frame_type(&self) -> FrameType {
+        self.frame_type
     }
 
     pub fn set_frame_type(&mut self, frame_type: FrameType) {
@@ -129,7 +134,7 @@ impl TibiaCodec {
             FrameType::XTEA(_) => {
                 let n = HEADER_SIZE + packet_data.len();
                 let mut padding = 0;
-                while (n + padding) % 8 != 0 { padding += 1; }
+                while (n + padding) % 8 != 0 { padding += 1; } // ugly, use math
                 (CHECKSUM_SIZE + n + padding, padding)
             }
         };
@@ -179,5 +184,30 @@ impl TibiaCodec {
 impl Default for TibiaCodec {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Decoder for TibiaCodec {
+    type Item = BytesMut;
+    type Error = std::io::Error;
+
+    fn decode(&mut self, src: &mut bytes::BytesMut) -> std::result::Result<Option<Self::Item>, Self::Error> {
+        self.decode(src)
+    }
+}
+
+impl Encoder<&[u8]> for TibiaCodec {
+    type Error = std::io::Error;
+
+    fn encode(&mut self, item: &[u8], dst: &mut BytesMut) -> std::result::Result<(), Self::Error> {
+        self.encode(item, dst)
+    }
+}
+
+impl Encoder<Bytes> for TibiaCodec {
+    type Error = std::io::Error;
+
+    fn encode(&mut self, item: Bytes, dst: &mut BytesMut) -> std::result::Result<(), Self::Error> {
+        self.encode(item.as_ref(), dst)
     }
 }

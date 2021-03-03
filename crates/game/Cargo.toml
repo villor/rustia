@@ -1,0 +1,18 @@
+[package]
+name = "rustia-game"
+version = "0.1.0"
+authors = ["Viktor Gustavsson <villor94@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+base = { path = "../base", package = "rustia-base" }
+
+feather-ecs = { git = "https://github.com/feather-rs/feather.git", rev = "9fa7bd6" }
+
+smartstring = "0.2"
+log = "0.4"
+anyhow = "1"
+flume = "0.10"
+ahash = "0.7"
+smallvec = "1.6"
+parking_lot = "0.11"

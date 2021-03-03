@@ -1,0 +1,15 @@
+[package]
+name = "rustia-protocol"
+version = "0.1.0"
+authors = ["Viktor Gustavsson <villor94@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+base = { path = "../base", package = "rustia-base" }
+
+tokio-util = { version = "0.6.3", features = ["codec"] }
+bytes = "1.0.1"
+adler32 = "1.2.0"
+byteorder = "1.4.2"
+num-bigint = "0.3.1"
+thiserror = "1"

@@ -1,7 +1,7 @@
 
 use bytes::{Buf, BufMut, BytesMut};
 use super::{PacketError, BytesMutExt, PacketRead, PacketWrite, PacketPayload};
-use crate::types::Position;
+use base::Position;
 
 use crate::gen_packet_types;
 
